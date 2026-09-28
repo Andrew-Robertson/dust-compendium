@@ -60,6 +60,10 @@ def validate(config: ConfigArgument) -> None:
         f" from {campaign.wavelengths.min():g} to {campaign.wavelengths.max():g} micron,"
         f" {campaign.inclinations.size} inclinations"
     )
+    typer.echo(
+        f"  Monte Carlo  : {settings.tabulation.photons} photons per wavelength and stage,"
+        f" {settings.tabulation.seed_policy} seed policy"
+    )
     typer.echo("  axes         :")
     for axis in campaign.axes:
         typer.echo(
@@ -277,7 +281,13 @@ def collect(
         assert grains.ferrara is not None  # guaranteed by the configuration
         dust = ferrara.build(grains.ferrara, grains.reference_opacity)
 
-    metadata = {"description": campaign.config.description}
+    metadata = {
+        "description": campaign.config.description,
+        # Keep all fixed as well as varying assumptions. A future row-oriented
+        # emulator dataset can therefore repeat the constant geometry columns
+        # without having to reconstruct them from a file name or publication.
+        "configuration": campaign.config.model_dump_json(by_alias=True),
+    }
     if grains.description:
         metadata["dustDescription"] = grains.description
     for name, component in campaign.config.geometry.components.items():

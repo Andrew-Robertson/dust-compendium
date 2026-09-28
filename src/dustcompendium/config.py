@@ -204,7 +204,16 @@ class TabulationConfig(_Base):
     )
     photons: int = Field(default=100000, gt=0)
     seed: int = -653
-    """Decremented for each model, so that every one gets its own realization."""
+    """The first random seed assigned by the campaign."""
+    seed_policy: Literal["model", "geometry"] = "model"
+    """How seeds are shared.
+
+    ``model`` reproduces the original scripts by assigning every radiative
+    transfer model a distinct seed. ``geometry`` assigns one seed to all
+    optical-depth variants of the same emitter and geometry. The latter makes
+    the dusty models and their dust-free normalization share photon histories,
+    reducing Monte Carlo noise in their ratio.
+    """
 
 
 class CampaignConfig(_Base):

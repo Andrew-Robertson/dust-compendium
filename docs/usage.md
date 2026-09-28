@@ -28,10 +28,18 @@ tabulation:
   wavelengths:  {minimum: 0.01, maximum: 3.0, count: 250}
   inclinations: {minimum: 0.0, maximum: 90.0, count: 46, spacing: linear}
   photons: 100000
+  # Share photon histories between dusty models and their dust-free reference.
+  seedPolicy: geometry
 ```
 
 Any value written as a range, or as a list, becomes an axis of the tabulation.
 Anything written as a number is held fixed.
+
+`seedPolicy: model` (the default) gives every model a distinct seed, reproducing
+the original driver. `seedPolicy: geometry` gives all optical-depth variants of
+one emitter and geometry the same seed. The latter is recommended for new
+campaigns because the attenuated and dust-free calculations then share photon
+histories, reducing Monte Carlo noise in their ratio.
 
 ## Seeing what it would run, before running it
 
@@ -83,6 +91,10 @@ The Slurm backend writes a batch script per model, submits with `sbatch`, and
 watches `squeue` and `sacct`. Only this campaign's jobs count towards
 `--concurrency`, so a busy account cannot stall it, and a transient scheduler
 failure is never mistaken for jobs having finished.
+
+For a serial, many-model workflow use `--nodes 1 --tasks 1`; `--concurrency`
+then controls how many independent Hyperion models are queued or running. See
+the [HPC guide](hpc.md) for a staged smoke test and storage guidance.
 
 ## Looking at the result
 

@@ -68,6 +68,11 @@ class TestCampaignConfig:
         assert config.label == "minimal"
         assert config.dust.ferrara == "milkyWay"
         assert config.geometry.spacing == "published"
+        assert config.tabulation.seed_policy == "model"
+
+    def test_geometry_seed_policy_parses_from_camel_case(self):
+        config = CampaignConfig.from_yaml(MINIMAL + "tabulation: {seedPolicy: geometry}\n")
+        assert config.tabulation.seed_policy == "geometry"
 
     def test_camel_case_keys_are_used_in_yaml(self):
         config = CampaignConfig.from_yaml(MINIMAL)
@@ -178,7 +183,14 @@ class TestProfileConfig:
 class TestShippedConfigurations:
     """The configurations in ``configs/`` must stay valid."""
 
-    @pytest.mark.parametrize("name", ["compendium-d03-rv3.1.yaml", "compendium-spheroid-dust.yaml"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "compendium-d03-rv3.1.yaml",
+            "compendium-spheroid-dust.yaml",
+            "tied-two-component-smoke.yaml",
+        ],
+    )
     def test_they_load(self, name):
         from pathlib import Path
 

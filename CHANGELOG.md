@@ -56,3 +56,10 @@ documentation for which tabulations are affected.
 - The extrapolation fit's residual is stored beside its coefficients, so the
   power-law assumption can be checked rather than trusted.
 - Uncertainties propagate from both the attenuated model and the reference.
+- A configurable `geometry` seed policy shares photon histories between all
+  optical-depth variants of one geometry, reducing noise in attenuation ratios
+  while leaving the legacy per-model policy as the default.
+- A small D03 R_V=4 tied disk+spheroid smoke campaign and an HPC execution
+  guide exercise the complete build, serial Slurm, and collection path.
+- Collected files retain the complete serialized campaign configuration, so
+  fixed as well as varying geometric assumptions remain recoverable.

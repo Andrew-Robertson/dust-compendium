@@ -49,7 +49,9 @@ on disk, so any of them can be interrupted and resumed.
 
 `configs/` holds the configuration for the published Draine R_V=3.1 tabulation,
 one adding dust to the spheroid, and one matched to Ferrara et al. (1999) for
-validation.
+validation. It also contains a small Draine R_V=4 tied disk+spheroid smoke
+campaign for checking a new Hyperion/HPC installation before designing a full
+emulator campaign. See the [HPC guide](docs/hpc.md).
 
 ## Validation
 

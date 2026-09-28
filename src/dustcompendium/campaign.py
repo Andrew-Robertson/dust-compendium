@@ -219,15 +219,32 @@ class Campaign:
     def runs(self) -> Iterator[Run]:
         """Every model in the campaign, in a stable order.
 
-        The seed is decremented per model, as the original did, so that each gets
-        its own realization rather than repeating one.
+        With the default ``model`` seed policy, the seed is decremented per
+        model as the original did. With ``geometry``, every optical-depth
+        variant of one emitter and geometry shares a seed. This makes each
+        attenuated model share photon histories with the dust-free model used
+        to normalize it.
         """
         tabulation = self.config.tabulation
         seed = tabulation.seed
+        geometry_seeds: dict[tuple[str, tuple[tuple[str, int], ...]], int] = {}
         for emitter in self.emitters:
             axes = self.axes_for(emitter)
             for indices in product(*(range(len(axis)) for axis in axes)):
-                seed -= 1
+                if tabulation.seed_policy == "model":
+                    seed -= 1
+                    run_seed = seed
+                else:
+                    geometry = tuple(
+                        (axis.name, index)
+                        for axis, index in zip(axes, indices, strict=True)
+                        if axis.kind != "opticalDepth"
+                    )
+                    key = (emitter, geometry)
+                    if key not in geometry_seeds:
+                        seed -= 1
+                        geometry_seeds[key] = seed
+                    run_seed = geometry_seeds[key]
                 suffix = "_".join(str(index) for index in indices)
                 yield Run(
                     emitter=emitter,
@@ -241,7 +258,7 @@ class Campaign:
                         inclinations=self.inclinations,
                         cut_off=self.config.geometry.cut_off,
                         photons=tabulation.photons,
-                        seed=seed,
+                        seed=run_seed,
                     ),
                 )
 

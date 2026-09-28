@@ -15,6 +15,7 @@ described in [Benson (2018)](https://ui.adsabs.harvard.edu/abs/2018RNAAS...2..18
 
 installation
 usage
+hpc
 concepts
 format
 datasets

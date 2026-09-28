@@ -1,0 +1,64 @@
+# A deliberately small end-to-end test of the tied disk+spheroid dust model.
+#
+# This is not a production emulator design. It samples three values of each
+# physical geometry coordinate, five diagnostically useful wavelengths and ten
+# inclinations so that installation, model construction, serial Slurm execution
+# and collection can be checked before committing to a larger design.
+#
+# The tied assumptions are explicit rather than implicit:
+#
+#   h_star,d / R_star,d       = 0.137
+#   R_dust,d / R_star,d       = 1
+#   h_dust,d / h_star,d       = 1
+#   a_dust,s / a_star,s       = 1
+#
+# Spheroid optical depth is the V-band optical depth along the complete ray at
+# projected radius a_dust,s. See geometry.Profile.reference_radius.
+label: experiment:tiedTwoComponent:smoke:dustD03Rv4.0
+description: >-
+  Small smoke campaign for disk and spheroid light attenuated by tied disk and
+  Hernquist spheroid dust, using Draine R_V=4 grains.
+
+dust:
+  file: hyperion-dust-0.1.0/dust_files/d03_4.0_4.0_A.hdf5
+  description: >-
+    Weingartner & Draine (2001) and Draine (2003), R_V=4.0, size-distribution
+    case A; generated from pinned hyperion-dust inputs.
+
+geometry:
+  cutOff: 10.0
+  radialCells: 100
+  verticalCells: 100
+  spacing: nested
+  sampling: average
+  components:
+    disk:
+      stellar:
+        profile: exponentialDisk
+        verticalStructure: sechSquared
+        scaleRadial: 1.0
+        scaleHeight: 0.137
+      dust:
+        profile: exponentialDisk
+        verticalStructure: sechSquared
+        scaleRadial: 1.0
+        scaleHeight: 0.137
+        opticalDepth: [0.0, 0.3, 3.0]
+    spheroid:
+      stellar:
+        profile: hernquist
+        scaleRadial: [0.1, 1.0, 10.0]
+        truncation: 10.0
+      dust:
+        profile: hernquist
+        scaleRadial: [0.1, 1.0, 10.0]
+        truncation: 10.0
+        opticalDepth: [0.0, 0.3, 3.0]
+
+tabulation:
+  # Far-UV, the 2175-Angstrom feature, V band, and two near-IR anchors.
+  wavelengths: [0.10, 0.2175, 0.55, 1.0, 2.0]
+  inclinations: {minimum: 0.0, maximum: 90.0, count: 10, spacing: linear}
+  photons: 10000
+  seed: -653
+  seedPolicy: geometry

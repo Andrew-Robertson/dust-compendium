@@ -113,6 +113,34 @@ class TestRuns:
         seeds = [run.spec.seed for run in campaign().runs()]
         assert len(set(seeds)) == len(seeds)
 
+    def test_geometry_seed_policy_pairs_optical_depth_variants(self):
+        text = (
+            SPHEROID_DUST.replace(
+                "{minimum: 0.01, maximum: 1.0e4, count: 60, includeZero: true}",
+                "[0.0, 1.0]",
+            )
+            .replace(
+                "{minimum: 0.01, maximum: 1.0e4, count: 6, includeZero: true}",
+                "[0.0, 1.0]",
+            )
+            .replace(
+                "{minimum: 1.0e-3, maximum: 1.0e2, count: 51}",
+                "[0.5, 2.0]",
+            )
+        )
+        one = campaign(text + "tabulation: {seedPolicy: geometry}\n")
+        runs = list(one.runs())
+        grouped = {}
+        for run in runs:
+            axes = one.axes_for(run.emitter)
+            geometry = tuple(
+                index for axis, index in zip(axes, run.indices, strict=True) if axis.kind != "opticalDepth"
+            )
+            grouped.setdefault((run.emitter, geometry), set()).add(run.spec.seed)
+        assert grouped
+        assert all(len(seeds) == 1 for seeds in grouped.values())
+        assert len({next(iter(seeds)) for seeds in grouped.values()}) == len(grouped)
+
     def test_optical_depths_track_their_axis(self):
         one = campaign()
         depths = one.axes[0].values
