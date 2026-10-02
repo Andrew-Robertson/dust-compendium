@@ -168,7 +168,7 @@ def run(
         Resources,
         is_solved,
         scheduler,
-        solver_command,
+        validated_solver_command,
         wait_for_solved,
     )
 
@@ -213,7 +213,7 @@ def run(
         jobs.append(
             Job(
                 label=candidate.file_stem,
-                command=solver_command(source, result, tasks=resources.tasks),
+                command=validated_solver_command(source, result, tasks=resources.tasks),
                 log_file=logs / f"{candidate.file_stem}.log",
                 resources=resources,
             )
@@ -240,11 +240,9 @@ def run(
         typer.echo(f"  [{finished}/{len(jobs)}] {mark} {result.job.label}")
 
     results = scheduler(backend, concurrency=concurrency).run(jobs, on_complete=report)
-    # A zero exit status is not proof of a solve: Hyperion aborts on some
-    # conditions and still exits zero, leaving an output with no SEDs in it.
-    # Conversely, a shared filesystem can briefly hide groups which a completed
-    # compute job has just written, so allow one bounded visibility window for
-    # every successful result together before diagnosing an abort.
+    # Each execution node has already validated that a successful result holds
+    # SEDs. Wait only to make those outputs ready for immediate post-processing:
+    # an NFS client on the submission node may still cache their in-flight size.
     successful_paths = {output / f"{result.job.label}.rtout" for result in results if result.succeeded}
     immediately_visible = {path for path in successful_paths if is_solved(path)}
     delayed = successful_paths - immediately_visible
@@ -254,17 +252,14 @@ def run(
             f"{'s' if len(delayed) != 1 else ''} to become visible"
         )
     confirmed = immediately_visible | wait_for_solved(tuple(delayed))
-    aborted = [
-        result
-        for result in results
-        if result.succeeded and output / f"{result.job.label}.rtout" not in confirmed
-    ]
-    for result in aborted:
+    still_delayed = successful_paths - confirmed
+    for path in sorted(still_delayed):
         typer.echo(
-            f"  {result.job.label}: the solver exited cleanly but wrote no SEDs; see {result.job.log_file}",
+            f"  {path}: verified on its execution node but is not yet visible here; "
+            "retry post-processing shortly",
             err=True,
         )
-    failures = [result for result in results if not result.succeeded] + aborted
+    failures = [result for result in results if not result.succeeded]
     typer.echo(f"{len(results) - len(failures)} of {len(results)} models succeeded")
     for failure in failures:
         typer.echo(f"  {failure.failure_message()}", err=True)

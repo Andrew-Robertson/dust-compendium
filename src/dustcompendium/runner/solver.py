@@ -6,11 +6,19 @@ and put on ``PATH``. See the installation notes in the README.
 """
 
 import shutil
+import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
 
-__all__ = ["SOLVERS", "is_solved", "solver_command", "wait_for_solved", "which_solver"]
+__all__ = [
+    "SOLVERS",
+    "is_solved",
+    "solver_command",
+    "validated_solver_command",
+    "wait_for_solved",
+    "which_solver",
+]
 
 #: Solver binaries by grid geometry, serial and MPI. The models here are
 #: cylindrical, so ``cylindrical`` is the one that matters.
@@ -82,6 +90,27 @@ def solver_command(
     return [*prefix, binary, *flags, str(source), str(result)]
 
 
+def validated_solver_command(source: Path, result: Path, tasks: int = 1) -> list[str]:
+    """Run a solver through the execution-node output validator.
+
+    The absolute path to this interpreter is deliberate. A batch shell need
+    not reactivate the Conda environment: it can run the environment's Python
+    directly, and the wrapper in turn locates the Hyperion binary from the
+    submitted environment's inherited ``PATH``.
+    """
+    if tasks < 1:
+        raise ValueError(f"tasks must be at least one, got {tasks}")
+    return [
+        sys.executable,
+        "-m",
+        "dustcompendium.runner.worker",
+        "--tasks",
+        str(tasks),
+        str(source),
+        str(result),
+    ]
+
+
 def is_solved(path: Path) -> bool:
     """Whether a solved model actually holds the SEDs it was meant to produce.
 
@@ -105,7 +134,7 @@ def is_solved(path: Path) -> bool:
         return False
 
 
-def wait_for_solved(paths: Sequence[Path], attempts: int = 31, interval: float = 1.0) -> set[Path]:
+def wait_for_solved(paths: Sequence[Path], attempts: int = 91, interval: float = 1.0) -> set[Path]:
     """Wait briefly for completed outputs to become visible.
 
     A scheduler can report a compute job complete before a shared filesystem's
@@ -114,9 +143,9 @@ def wait_for_solved(paths: Sequence[Path], attempts: int = 31, interval: float =
     batch costs at most one retry window rather than one window per model.
 
     Returns the subset of ``paths`` which contain SEDs before the retry window
-    expires. The default allows roughly thirty seconds for shared-filesystem
-    visibility while preserving :func:`is_solved` as a cheap, immediate check
-    when scanning an existing campaign.
+    expires. The default exceeds NFS's usual sixty-second regular-file
+    attribute-cache maximum while preserving :func:`is_solved` as a cheap,
+    immediate check when scanning an existing campaign.
     """
     if attempts < 1:
         raise ValueError(f"attempts must be at least one, got {attempts}")

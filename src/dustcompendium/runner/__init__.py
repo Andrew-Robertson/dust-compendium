@@ -3,7 +3,14 @@
 from .base import Job, JobResult, Resources, Scheduler
 from .local import LocalScheduler
 from .slurm import SlurmScheduler
-from .solver import SOLVERS, is_solved, solver_command, wait_for_solved, which_solver
+from .solver import (
+    SOLVERS,
+    is_solved,
+    solver_command,
+    validated_solver_command,
+    wait_for_solved,
+    which_solver,
+)
 
 #: Schedulers by the name a configuration or the command line uses.
 SCHEDULERS: dict[str, type[Scheduler]] = {
@@ -40,6 +47,7 @@ __all__ = [
     "is_solved",
     "scheduler",
     "solver_command",
+    "validated_solver_command",
     "wait_for_solved",
     "which_solver",
 ]

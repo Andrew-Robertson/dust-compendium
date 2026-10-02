@@ -17,6 +17,7 @@ from dustcompendium.runner import (
     SlurmScheduler,
     scheduler,
     solver_command,
+    validated_solver_command,
     wait_for_solved,
     which_solver,
 )
@@ -77,6 +78,18 @@ class TestSolverCommand:
         monkeypatch.setattr("shutil.which", lambda name: f"/bin/{name}")
         with pytest.raises(ValueError, match="at least one"):
             solver_command(Path("a"), Path("b"), tasks=0)
+
+    def test_the_validated_command_uses_this_python_environment(self):
+        command = validated_solver_command(Path("in.hdf5"), Path("out.rtout"), tasks=4)
+        assert command == [
+            sys.executable,
+            "-m",
+            "dustcompendium.runner.worker",
+            "--tasks",
+            "4",
+            "in.hdf5",
+            "out.rtout",
+        ]
 
 
 class TestWaitForSolved:
