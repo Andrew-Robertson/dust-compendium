@@ -14,7 +14,6 @@ raw outputs and logs on a filesystem intended for large reproducible data:
 ```bash
 git clone https://github.com/galacticusorg/dust-compendium.git
 cd dust-compendium
-git switch feature/tied-two-component-dust
 
 export DUST_RT_WORK=/path/to/large-storage/dust-radiative-transfer
 mkdir -p "$DUST_RT_WORK"
