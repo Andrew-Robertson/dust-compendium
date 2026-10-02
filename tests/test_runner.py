@@ -17,6 +17,7 @@ from dustcompendium.runner import (
     SlurmScheduler,
     scheduler,
     solver_command,
+    wait_for_solved,
     which_solver,
 )
 from dustcompendium.runner.slurm import batch_script
@@ -76,6 +77,38 @@ class TestSolverCommand:
         monkeypatch.setattr("shutil.which", lambda name: f"/bin/{name}")
         with pytest.raises(ValueError, match="at least one"):
             solver_command(Path("a"), Path("b"), tasks=0)
+
+
+class TestWaitForSolved:
+    def test_it_retries_all_delayed_outputs_together(self, monkeypatch, tmp_path):
+        paths = [tmp_path / "one.rtout", tmp_path / "two.rtout"]
+        calls = dict.fromkeys(paths, 0)
+
+        def delayed(path):
+            calls[path] += 1
+            return calls[path] >= 2
+
+        sleeps = []
+        monkeypatch.setattr("dustcompendium.runner.solver.is_solved", delayed)
+        monkeypatch.setattr("dustcompendium.runner.solver.time.sleep", sleeps.append)
+
+        assert wait_for_solved(paths, attempts=3, interval=0.25) == set(paths)
+        assert sleeps == [0.25]
+
+    def test_a_genuine_abort_expires_after_one_shared_window(self, monkeypatch, tmp_path):
+        paths = [tmp_path / "one.rtout", tmp_path / "two.rtout"]
+        sleeps = []
+        monkeypatch.setattr("dustcompendium.runner.solver.is_solved", lambda path: False)
+        monkeypatch.setattr("dustcompendium.runner.solver.time.sleep", sleeps.append)
+
+        assert wait_for_solved(paths, attempts=3, interval=0.5) == set()
+        assert sleeps == [0.5, 0.5]
+
+    def test_nonsensical_retry_settings_are_rejected(self):
+        with pytest.raises(ValueError, match="attempts"):
+            wait_for_solved([], attempts=0)
+        with pytest.raises(ValueError, match="interval"):
+            wait_for_solved([], interval=-1.0)
 
 
 class TestLocalScheduler:

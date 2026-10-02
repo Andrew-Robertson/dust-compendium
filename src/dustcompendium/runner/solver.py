@@ -6,10 +6,11 @@ and put on ``PATH``. See the installation notes in the README.
 """
 
 import shutil
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
-__all__ = ["SOLVERS", "is_solved", "solver_command", "which_solver"]
+__all__ = ["SOLVERS", "is_solved", "solver_command", "wait_for_solved", "which_solver"]
 
 #: Solver binaries by grid geometry, serial and MPI. The models here are
 #: cylindrical, so ``cylindrical`` is the one that matters.
@@ -102,3 +103,33 @@ def is_solved(path: Path) -> bool:
     except OSError:
         # A truncated or unreadable file is not a solved one.
         return False
+
+
+def wait_for_solved(paths: Sequence[Path], attempts: int = 31, interval: float = 1.0) -> set[Path]:
+    """Wait briefly for completed outputs to become visible.
+
+    A scheduler can report a compute job complete before a shared filesystem's
+    metadata cache on the submitting node exposes the groups just written to
+    its HDF5 output. Check all paths together, so even a genuinely aborted
+    batch costs at most one retry window rather than one window per model.
+
+    Returns the subset of ``paths`` which contain SEDs before the retry window
+    expires. The default allows roughly thirty seconds for shared-filesystem
+    visibility while preserving :func:`is_solved` as a cheap, immediate check
+    when scanning an existing campaign.
+    """
+    if attempts < 1:
+        raise ValueError(f"attempts must be at least one, got {attempts}")
+    if interval < 0.0:
+        raise ValueError(f"interval cannot be negative, got {interval}")
+
+    pending = {Path(path) for path in paths}
+    solved: set[Path] = set()
+    for attempt in range(attempts):
+        newly_solved = {path for path in pending if is_solved(path)}
+        solved.update(newly_solved)
+        pending.difference_update(newly_solved)
+        if not pending or attempt + 1 == attempts:
+            break
+        time.sleep(interval)
+    return solved

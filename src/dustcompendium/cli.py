@@ -162,7 +162,15 @@ def run(
     """
     from .campaign import Campaign
     from .config import load_campaign
-    from .runner import SCHEDULERS, Job, Resources, is_solved, scheduler, solver_command
+    from .runner import (
+        SCHEDULERS,
+        Job,
+        Resources,
+        is_solved,
+        scheduler,
+        solver_command,
+        wait_for_solved,
+    )
 
     if backend not in SCHEDULERS:
         typer.echo(
@@ -234,10 +242,22 @@ def run(
     results = scheduler(backend, concurrency=concurrency).run(jobs, on_complete=report)
     # A zero exit status is not proof of a solve: Hyperion aborts on some
     # conditions and still exits zero, leaving an output with no SEDs in it.
+    # Conversely, a shared filesystem can briefly hide groups which a completed
+    # compute job has just written, so allow one bounded visibility window for
+    # every successful result together before diagnosing an abort.
+    successful_paths = {output / f"{result.job.label}.rtout" for result in results if result.succeeded}
+    immediately_visible = {path for path in successful_paths if is_solved(path)}
+    delayed = successful_paths - immediately_visible
+    if delayed:
+        typer.echo(
+            f"waiting for {len(delayed)} completed output file"
+            f"{'s' if len(delayed) != 1 else ''} to become visible"
+        )
+    confirmed = immediately_visible | wait_for_solved(tuple(delayed))
     aborted = [
         result
         for result in results
-        if result.succeeded and not is_solved(output / f"{result.job.label}.rtout")
+        if result.succeeded and output / f"{result.job.label}.rtout" not in confirmed
     ]
     for result in aborted:
         typer.echo(

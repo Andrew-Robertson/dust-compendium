@@ -63,3 +63,6 @@ documentation for which tabulations are affected.
   guide exercise the complete build, serial Slurm, and collection path.
 - Collected files retain the complete serialized campaign configuration, so
   fixed as well as varying geometric assumptions remain recoverable.
+- Successful Slurm jobs are given a bounded retry window for their HDF5 groups
+  to become visible on the submission node, avoiding false Hyperion-abort
+  reports from shared-filesystem metadata latency.
