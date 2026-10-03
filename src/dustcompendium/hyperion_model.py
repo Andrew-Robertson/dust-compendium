@@ -110,7 +110,7 @@ def build_model(
 
     image = model.add_peeled_images(image=False)
     image.set_wavelength_index_range(0, spec.wavelengths.size - 1)
-    image.set_viewing_angles(*viewing_angles(spec.inclinations))
+    image.set_viewing_angles(*viewing_angles(spec.inclinations, spec.azimuths))
     image.set_uncertainties(True)
 
     model.set_n_photons(

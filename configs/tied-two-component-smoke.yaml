@@ -59,6 +59,8 @@ tabulation:
   # Far-UV, the 2175-Angstrom feature, V band, and two near-IR anchors.
   wavelengths: [0.10, 0.2175, 0.55, 1.0, 2.0]
   inclinations: {minimum: 0.0, maximum: 90.0, count: 10, spacing: linear}
+  # Benson compatibility choice, not an assumed independent-noise average.
+  azimuths: [90.0, 270.0]
   photons: 10000
   seed: -653
   seedPolicy: geometry

@@ -69,6 +69,19 @@ class TestCampaignConfig:
         assert config.dust.ferrara == "milkyWay"
         assert config.geometry.spacing == "published"
         assert config.tabulation.seed_policy == "model"
+        np.testing.assert_allclose(values_of(config.tabulation.azimuths), [90.0, 270.0])
+
+    @pytest.mark.parametrize(
+        "azimuths",
+        ["[]", "[-1.0]", "[360.0]", "[90.0, 90.0]"],
+    )
+    def test_invalid_azimuths_are_rejected(self, azimuths):
+        with pytest.raises(ValidationError, match="azimuths"):
+            CampaignConfig.from_yaml(MINIMAL + f"tabulation: {{azimuths: {azimuths}}}\n")
+
+    def test_explicit_azimuths_parse(self):
+        config = CampaignConfig.from_yaml(MINIMAL + "tabulation: {azimuths: [0, 120, 240]}\n")
+        np.testing.assert_allclose(values_of(config.tabulation.azimuths), [0.0, 120.0, 240.0])
 
     def test_geometry_seed_policy_parses_from_camel_case(self):
         config = CampaignConfig.from_yaml(MINIMAL + "tabulation: {seedPolicy: geometry}\n")

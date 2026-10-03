@@ -61,6 +61,9 @@ documentation for which tabulations are affected.
   while leaving the legacy per-model policy as the default.
 - A small D03 R_V=4 tied disk+spheroid smoke campaign and an HPC execution
   guide exercise the complete build, serial Slurm, and collection path.
+- Peel-off azimuths are configurable. Individual directions can be retained for
+  convergence studies, and their shared photon histories are no longer treated
+  as statistically independent when uncertainties are combined.
 - Collected files retain the complete serialized campaign configuration, so
   fixed as well as varying geometric assumptions remain recoverable.
 - Every Hyperion output is validated for peeled SEDs on its execution node,

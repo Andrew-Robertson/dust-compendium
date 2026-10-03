@@ -130,3 +130,9 @@ Hyperion solver, Slurm execution, paired seed policy and collection path all
 work together. It does **not** establish spatial convergence, photon
 convergence, a production parameter domain or an efficient emulator training
 design. Those are the next experiments.
+
+The first such experiment is documented in the repository under
+``studies/tied-two-component-azimuths``. It generates one-, two- and
+four-azimuth campaigns with five independent seed families, so the actual
+between-seed scatter and Slurm cost can determine whether extra peel-off
+directions are worthwhile.

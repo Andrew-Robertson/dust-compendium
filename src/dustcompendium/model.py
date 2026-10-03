@@ -136,26 +136,41 @@ def stellar_emission(galaxy: Galaxy, grid: CylindricalGrid, emitter: str) -> NDA
     return component.stellar.cell_mass(*grid.bounds)
 
 
-def viewing_angles(inclinations: NDArray[np.float64]) -> tuple[NDArray, NDArray]:
-    r"""Peel-off directions, each inclination viewed from two opposite azimuths.
+def viewing_angles(
+    inclinations: NDArray[np.float64],
+    azimuths: NDArray[np.float64] | None = None,
+) -> tuple[NDArray, NDArray]:
+    r"""Peel-off directions for every inclination--azimuth combination.
 
-    The models are axisymmetric, so the two azimuths see the same galaxy and
-    their difference is pure Monte Carlo noise. Averaging them afterwards cuts
-    that noise by :math:`\sqrt{2}` for free, which is why the original observed
-    each inclination twice.
+    The default azimuths of 90 and 270 degrees reproduce the original Benson
+    calculations. In an axisymmetric model all requested azimuths have the same
+    expectation, but estimates from them share photon histories and need not be
+    statistically independent. Requesting more directions also adds peel-off
+    work, so the useful number is a convergence question rather than an exact
+    symmetry argument.
 
     Returns
     -------
-    Polar and azimuthal angles in degrees, each of twice the input length: every
-    inclination at 90 degrees, then every inclination at 270.
+    Polar and azimuthal angles in degrees, ordered in one inclination block per
+    azimuth. This order lets post-processing reshape the viewing-direction axis
+    to ``(azimuth, inclination)``.
     """
     inclinations = np.asarray(inclinations, dtype=float)
+    if azimuths is None:
+        azimuths = np.array([90.0, 270.0])
+    azimuths = np.asarray(azimuths, dtype=float)
     if inclinations.ndim != 1 or inclinations.size == 0:
         raise ValueError("inclinations must be a non-empty one-dimensional array")
     if np.any(inclinations < 0.0) or np.any(inclinations > 90.0):
         raise ValueError("inclinations must lie between 0 and 90 degrees")
-    polar = np.hstack([inclinations, inclinations])
-    azimuthal = np.hstack([np.repeat(90.0, inclinations.size), np.repeat(270.0, inclinations.size)])
+    if azimuths.ndim != 1 or azimuths.size == 0:
+        raise ValueError("azimuths must be a non-empty one-dimensional array")
+    if np.any(azimuths < 0.0) or np.any(azimuths >= 360.0):
+        raise ValueError("azimuths must lie in [0, 360) degrees")
+    if np.unique(azimuths).size != azimuths.size:
+        raise ValueError("azimuths must not contain duplicate directions")
+    polar = np.tile(inclinations, azimuths.size)
+    azimuthal = np.repeat(azimuths, inclinations.size)
     return polar, azimuthal
 
 
@@ -208,6 +223,9 @@ class ModelSpec:
         Wavelengths to solve at, in microns.
     inclinations
         Viewing inclinations in degrees, from face-on at 0 to edge-on at 90.
+    azimuths
+        Peel-off azimuths in degrees. The default reproduces the two opposite
+        directions in the original Benson calculations.
     cut_off
         How many scale lengths out to extend the grid.
     photons
@@ -222,6 +240,7 @@ class ModelSpec:
     optical_depths: Mapping[str, float] = field(default_factory=dict)
     wavelengths: NDArray[np.float64] = field(default_factory=lambda: np.array([0.55]))
     inclinations: NDArray[np.float64] = field(default_factory=lambda: np.array([90.0]))
+    azimuths: NDArray[np.float64] = field(default_factory=lambda: np.array([90.0, 270.0]))
     cut_off: float = 10.0
     photons: int = 100000
     seed: int = -1
@@ -229,13 +248,14 @@ class ModelSpec:
     def __post_init__(self) -> None:
         object.__setattr__(self, "wavelengths", np.atleast_1d(np.asarray(self.wavelengths, float)))
         object.__setattr__(self, "inclinations", np.atleast_1d(np.asarray(self.inclinations, float)))
+        object.__setattr__(self, "azimuths", np.atleast_1d(np.asarray(self.azimuths, float)))
         if np.any(self.wavelengths <= 0.0):
             raise ValueError("wavelengths must be positive")
         if self.photons <= 0:
             raise ValueError(f"photons must be positive, got {self.photons}")
         # Validates the inclinations, and the emitter through stellar_emission's
         # own checks when the model is built.
-        viewing_angles(self.inclinations)
+        viewing_angles(self.inclinations, self.azimuths)
 
     def grid(self, **options: Any) -> CylindricalGrid:
         """The grid this model is solved on.

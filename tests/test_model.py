@@ -159,7 +159,7 @@ class TestStellarEmission:
 
 
 class TestViewingAngles:
-    def test_each_inclination_is_seen_from_two_opposite_azimuths(self):
+    def test_default_reproduces_two_opposite_azimuths(self):
         inclinations = np.array([0.0, 45.0, 90.0])
         polar, azimuthal = viewing_angles(inclinations)
         assert polar.size == azimuthal.size == 2 * inclinations.size
@@ -167,6 +167,13 @@ class TestViewingAngles:
         np.testing.assert_allclose(polar[3:], inclinations)
         np.testing.assert_allclose(azimuthal[:3], 90.0)
         np.testing.assert_allclose(azimuthal[3:], 270.0)
+
+    def test_each_inclination_is_seen_at_every_requested_azimuth(self):
+        inclinations = np.array([0.0, 60.0])
+        azimuths = np.array([0.0, 120.0, 240.0])
+        polar, azimuthal = viewing_angles(inclinations, azimuths)
+        np.testing.assert_allclose(polar, [0.0, 60.0, 0.0, 60.0, 0.0, 60.0])
+        np.testing.assert_allclose(azimuthal, [0.0, 0.0, 120.0, 120.0, 240.0, 240.0])
 
     @pytest.mark.parametrize("bad", [np.array([-1.0]), np.array([91.0])])
     def test_inclinations_outside_the_quadrant_are_rejected(self, bad):
@@ -176,6 +183,14 @@ class TestViewingAngles:
     def test_an_empty_set_is_rejected(self):
         with pytest.raises(ValueError, match="non-empty"):
             viewing_angles(np.array([]))
+
+    @pytest.mark.parametrize(
+        "bad",
+        [np.array([]), np.array([-1.0]), np.array([360.0]), np.array([90.0, 90.0])],
+    )
+    def test_invalid_azimuths_are_rejected(self, bad):
+        with pytest.raises(ValueError, match="azimuths"):
+            viewing_angles(np.array([45.0]), bad)
 
 
 class TestFlatSpectrum:
@@ -218,8 +233,11 @@ class TestModelSpec:
         assert spec.grid().shape == (1, 100, 100)
 
     def test_scalars_are_promoted_to_arrays(self):
-        spec = ModelSpec(galaxy(), "disk", {"disk": 1.0}, wavelengths=0.55, inclinations=90.0)
+        spec = ModelSpec(
+            galaxy(), "disk", {"disk": 1.0}, wavelengths=0.55, inclinations=90.0, azimuths=45.0
+        )
         assert spec.wavelengths.shape == (1,) and spec.inclinations.shape == (1,)
+        assert spec.azimuths.shape == (1,)
 
     @pytest.mark.parametrize(
         ("kwargs", "match"),

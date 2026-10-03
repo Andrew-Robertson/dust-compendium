@@ -58,7 +58,8 @@ def validate(config: ConfigArgument) -> None:
     typer.echo(
         f"  tabulated at : {campaign.wavelengths.size} wavelengths"
         f" from {campaign.wavelengths.min():g} to {campaign.wavelengths.max():g} micron,"
-        f" {campaign.inclinations.size} inclinations"
+        f" {campaign.inclinations.size} inclinations,"
+        f" {campaign.azimuths.size} azimuths"
     )
     typer.echo(
         f"  Monte Carlo  : {settings.tabulation.photons} photons per wavelength and stage,"

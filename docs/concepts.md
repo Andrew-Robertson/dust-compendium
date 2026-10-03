@@ -88,9 +88,18 @@ straight line through two points passes through both.
 
 ## Noise, and the two azimuths
 
-Every inclination is observed twice, from opposite azimuths. For an axisymmetric
-model those are the same view, so their difference is pure Monte Carlo noise and
-averaging them narrows it by {math}`\sqrt{2}` for nothing.
+The original Benson calculations requested every inclination twice, from
+opposite azimuths. This package keeps those directions as its default for
+reproducibility, and permits an explicit list under ``tabulation.azimuths``.
+
+For an axisymmetric model the directions have the same physical expectation,
+but Hyperion estimates both from the same photon histories. They are therefore
+correlated, and each extra direction also requires another peel-off calculation.
+It is not justified to assert that averaging two directions reduces the noise by
+{math}`\sqrt{2}` without measuring their covariance. Tabulation averages use the
+fully-correlated (conservative) uncertainty limit. Use the individual directions
+and repeated random seeds to test whether one, two or more azimuths are the most
+efficient choice at fixed computational cost.
 
 Dividing by the model with no dust — same geometry, same seed — cancels much of
 what remains.

@@ -202,6 +202,14 @@ class TabulationConfig(_Base):
     inclinations: Parameter = Field(
         default_factory=lambda: RangeConfig(minimum=0.0, maximum=90.0, count=46, spacing="linear")
     )
+    azimuths: Parameter = Field(default_factory=lambda: [90.0, 270.0])
+    """Explicit peel-off azimuths, in degrees.
+
+    The two opposite directions reproduce the Benson calculations. They are
+    separate estimators made from shared photon histories, not independent
+    radiative-transfer runs; convergence studies should vary this list rather
+    than assuming their average gains a factor of square root two.
+    """
     photons: int = Field(default=100000, gt=0)
     seed: int = -653
     """The first random seed assigned by the campaign."""
@@ -214,6 +222,18 @@ class TabulationConfig(_Base):
     the dusty models and their dust-free normalization share photon histories,
     reducing Monte Carlo noise in their ratio.
     """
+
+    @model_validator(mode="after")
+    def _check_angles(self) -> "TabulationConfig":
+        inclinations = values_of(self.inclinations)
+        if inclinations.size == 0 or np.any((inclinations < 0.0) | (inclinations > 90.0)):
+            raise ValueError("inclinations must be non-empty and lie between 0 and 90 degrees")
+        azimuths = values_of(self.azimuths)
+        if azimuths.size == 0 or np.any((azimuths < 0.0) | (azimuths >= 360.0)):
+            raise ValueError("azimuths must be non-empty and lie in [0, 360) degrees")
+        if np.unique(azimuths).size != azimuths.size:
+            raise ValueError("azimuths must not contain duplicate directions")
+        return self
 
 
 class CampaignConfig(_Base):

@@ -5,9 +5,39 @@ import pytest
 
 from dustcompendium.postprocess import (
     EXTRAPOLATION_DECADES,
+    average_azimuths,
     attenuation_of,
     fit_extrapolation,
 )
+
+
+class TestAverageAzimuths:
+    def test_values_are_averaged_over_azimuth_only(self):
+        values = np.arange(2 * 3 * 4, dtype=float).reshape(2, 3, 4)
+        uncertainties = np.ones_like(values)
+        averaged, _ = average_azimuths(values, uncertainties)
+        np.testing.assert_allclose(averaged, np.mean(values, axis=0))
+        assert averaged.shape == (3, 4)
+
+    def test_uncertainty_uses_fully_correlated_upper_bound(self):
+        values = np.ones((2, 1, 2))
+        uncertainties = np.array([[[0.1, 0.2]], [[0.3, 0.4]]])
+        _, combined = average_azimuths(values, uncertainties)
+        np.testing.assert_allclose(combined, [[0.2, 0.3]])
+
+    def test_independence_is_not_silently_assumed(self):
+        values = np.ones((4, 1, 1))
+        uncertainties = np.ones_like(values) * 0.2
+        _, combined = average_azimuths(values, uncertainties)
+        assert combined[0, 0] == pytest.approx(0.2)
+
+    @pytest.mark.parametrize(
+        ("values", "uncertainties"),
+        [(np.ones((2, 3)), np.ones((2, 3))), (np.ones((2, 3, 4)), np.ones((2, 3, 5)))],
+    )
+    def test_bad_shapes_are_rejected(self, values, uncertainties):
+        with pytest.raises(ValueError):
+            average_azimuths(values, uncertainties)
 
 
 class TestAttenuation:

@@ -2,10 +2,11 @@ r"""Turning solved models into a tabulation.
 
 Three steps, each of which the original did inline in its driver.
 
-Peel-off directions are averaged in pairs. Every inclination is observed twice,
-from opposite azimuths, which for an axisymmetric model are the same view; their
-difference is pure Monte Carlo noise, so averaging them narrows it by root two
-for nothing.
+Peel-off directions at the same inclination are averaged over the configured
+azimuths. For an axisymmetric model they have the same expectation, but they
+share photon histories and are not assumed independent. The tabulated
+uncertainty therefore uses the conservative fully-correlated limit; raw views
+remain available through :func:`read_sed_views` for convergence studies.
 
 The result is divided by the model with no dust at all, which turns a luminosity
 into the fraction of light escaping. Taking the ratio against a model of the same
@@ -28,10 +29,12 @@ from numpy.typing import NDArray
 
 __all__ = [
     "EXTRAPOLATION_DECADES",
+    "average_azimuths",
     "attenuation_of",
     "collect",
     "fit_extrapolation",
     "read_sed",
+    "read_sed_views",
 ]
 
 #: How far below the largest optical depth the extrapolation is fitted over, as
@@ -39,28 +42,43 @@ __all__ = [
 EXTRAPOLATION_DECADES = 10.0
 
 
-def read_sed(path: str | Path) -> tuple[NDArray, NDArray, NDArray]:
-    r"""Read a solved model, averaging the two azimuths of each inclination.
+def average_azimuths(
+    values: NDArray,
+    uncertainties: NDArray,
+) -> tuple[NDArray, NDArray]:
+    r"""Average an ``(azimuth, inclination, wavelength)`` array.
 
-    Parameters
-    ----------
-    path
-        A model solved by one of the Hyperion solvers.
-
-    Returns
-    -------
-    Wavelengths in microns, luminosities indexed by inclination and wavelength,
-    and their Monte Carlo uncertainties. The two azimuths are averaged, and
-    their uncertainties combined in quadrature.
-
-    Raises
-    ------
-    ImportError
-        If Hyperion is not installed.
-    ValueError
-        If the model does not hold an even number of viewing directions, which
-        would mean it was not built by this package.
+    The individual Hyperion uncertainties do not describe covariance between
+    peel-off directions computed from the same photon histories. In the absence
+    of that covariance, combining them in quadrature would assume independence.
+    Instead return their arithmetic mean, corresponding to the upper bound in
+    which their errors are perfectly positively correlated. Repeated complete
+    runs with different seeds are needed to measure the uncertainty of the
+    azimuthal mean more sharply.
     """
+    values = np.asarray(values)
+    uncertainties = np.asarray(uncertainties)
+    if values.ndim != 3:
+        raise ValueError("values must be indexed by azimuth, inclination and wavelength")
+    if uncertainties.shape != values.shape:
+        raise ValueError(
+            f"uncertainties have shape {uncertainties.shape}, expected {values.shape}"
+        )
+    return np.mean(values, axis=0), np.mean(np.abs(uncertainties), axis=0)
+
+
+def read_sed_views(
+    path: str | Path,
+    azimuth_count: int = 2,
+) -> tuple[NDArray, NDArray, NDArray]:
+    r"""Read every peel-off direction from a solved model.
+
+    Returns wavelengths and luminosity/uncertainty arrays indexed by azimuth,
+    inclination and wavelength. ``azimuth_count=2`` preserves compatibility
+    with the original Benson configuration.
+    """
+    if azimuth_count <= 0:
+        raise ValueError(f"azimuth_count must be positive, got {azimuth_count}")
     try:
         from hyperion.model import ModelOutput
     except ImportError as error:  # pragma: no cover - depends on the environment
@@ -73,15 +91,44 @@ def read_sed(path: str | Path) -> tuple[NDArray, NDArray, NDArray]:
     # The aperture axis is present but singular: these are SEDs, not images.
     values = np.asarray(sed.val)[:, 0, :]
     uncertainties = np.asarray(sed.unc)[:, 0, :]
-    if values.shape[0] % 2:
+    if values.shape[0] % azimuth_count:
         raise ValueError(
-            f"{path} has {values.shape[0]} viewing directions, which is not two per "
-            "inclination; it was not built by this package"
+            f"{path} has {values.shape[0]} viewing directions, which cannot be "
+            f"divided among {azimuth_count} azimuths"
         )
-    half = values.shape[0] // 2
-    averaged = (values[:half] + values[half:]) / 2.0
-    combined = np.sqrt(uncertainties[:half] ** 2 + uncertainties[half:] ** 2) / 2.0
-    return np.asarray(sed.wav), averaged, combined
+    inclinations = values.shape[0] // azimuth_count
+    shape = (azimuth_count, inclinations, values.shape[-1])
+    return np.asarray(sed.wav), values.reshape(shape), uncertainties.reshape(shape)
+
+
+def read_sed(
+    path: str | Path,
+    azimuth_count: int = 2,
+) -> tuple[NDArray, NDArray, NDArray]:
+    r"""Read a solved model, averaging each inclination over azimuth.
+
+    Parameters
+    ----------
+    path
+        A model solved by one of the Hyperion solvers.
+
+    Returns
+    -------
+    Wavelengths in microns, luminosities indexed by inclination and wavelength,
+    and conservative Monte Carlo uncertainties. The default of two azimuths
+    reproduces the original model layout.
+
+    Raises
+    ------
+    ImportError
+        If Hyperion is not installed.
+    ValueError
+        If the model's viewing directions cannot be divided among the requested
+        number of azimuths.
+    """
+    wavelengths, values, uncertainties = read_sed_views(path, azimuth_count=azimuth_count)
+    averaged, conservative = average_azimuths(values, uncertainties)
+    return wavelengths, averaged, conservative
 
 
 def attenuation_of(
@@ -251,7 +298,10 @@ def collect(
     luminosity: dict[str, NDArray] = {}
     noise: dict[str, NDArray] = {}
     for run in runs:
-        found, values, uncertainties = read_sed(output / f"{run.file_stem}{suffix}")
+        found, values, uncertainties = read_sed(
+            output / f"{run.file_stem}{suffix}",
+            azimuth_count=campaign.azimuths.size,
+        )
         if wavelengths is None:
             wavelengths = found
             if not np.allclose(wavelengths, campaign.wavelengths, rtol=1.0e-6):

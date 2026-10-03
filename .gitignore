@@ -26,6 +26,10 @@ docs/_build/
 *.pbs
 *.log
 
+# Generated study manifests and summaries.
+/studies/*/generated-configs/
+/studies/*/results.csv
+
 # Editor and OS clutter
 .DS_Store
 *~

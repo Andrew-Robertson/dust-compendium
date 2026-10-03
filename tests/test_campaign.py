@@ -176,11 +176,12 @@ class TestRuns:
             if run.emitter == "disk":
                 assert run.spec.galaxy.extent_vertical == pytest.approx(0.137)
 
-    def test_wavelengths_and_inclinations_reach_every_run(self):
+    def test_wavelengths_and_viewing_angles_reach_every_run(self):
         one = campaign()
         for run in list(one.runs())[:5]:
             np.testing.assert_allclose(run.spec.wavelengths, one.wavelengths)
             np.testing.assert_allclose(run.spec.inclinations, one.inclinations)
+            np.testing.assert_allclose(run.spec.azimuths, one.azimuths)
 
     def test_grid_options_come_from_the_configuration(self):
         one = campaign(PUBLISHED.replace("  components:", "  spacing: nested\n  components:"))

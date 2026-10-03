@@ -114,8 +114,9 @@ class TestSolverRoundTrip:
         )
         assert completed.returncode == 0, completed.stdout[-2000:] + completed.stderr[-2000:]
         sed = ModelOutput(result).get_sed()
-        # Peel-off directions are the two azimuths of each inclination; average
-        # them, which is what halves the Monte Carlo noise.
+        # Peel-off directions are the two configured azimuths of each
+        # inclination. They share photon histories, so this average is not
+        # assumed to halve the variance.
         values = np.array(sed.val)[:, 0, :]
         return (values[:2] + values[2:]) / 2.0, np.array(sed.wav)
 
@@ -143,3 +144,24 @@ class TestSolverRoundTrip:
         transmission = attenuated / transparent
         blue, visual = transmission[1]
         assert blue < visual
+
+    def test_configured_azimuths_survive_the_solver_round_trip(self, tmp_path, solver_path, dust):
+        from dustcompendium.hyperion_model import write_model
+        from dustcompendium.postprocess import read_sed_views
+
+        source = str(tmp_path / "three_azimuths.hdf5")
+        result = str(tmp_path / "three_azimuths.rtout")
+        write_model(
+            spec(1.0, azimuths=np.array([0.0, 120.0, 240.0]), photons=2000),
+            dust,
+            source,
+            radial_cells=20,
+            vertical_cells=20,
+        )
+        completed = subprocess.run(
+            [solver_path, "-f", source, result], capture_output=True, text=True, check=False
+        )
+        assert completed.returncode == 0, completed.stdout[-2000:] + completed.stderr[-2000:]
+        wavelengths, values, uncertainties = read_sed_views(result, azimuth_count=3)
+        assert wavelengths.size == 2
+        assert values.shape == uncertainties.shape == (3, 2, 2)

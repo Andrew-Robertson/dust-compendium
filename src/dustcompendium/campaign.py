@@ -101,6 +101,7 @@ class Campaign:
         self.axes = tuple(self._axes())
         self.wavelengths = values_of(config.tabulation.wavelengths)
         self.inclinations = values_of(config.tabulation.inclinations)
+        self.azimuths = values_of(config.tabulation.azimuths)
 
     def _axes(self) -> Iterator[Axis]:
         for name, component in self.config.geometry.components.items():
@@ -256,6 +257,7 @@ class Campaign:
                         optical_depths=self.optical_depths(indices, axes),
                         wavelengths=self.wavelengths,
                         inclinations=self.inclinations,
+                        azimuths=self.azimuths,
                         cut_off=self.config.geometry.cut_off,
                         photons=tabulation.photons,
                         seed=run_seed,
