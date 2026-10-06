@@ -229,7 +229,11 @@ class ModelSpec:
     cut_off
         How many scale lengths out to extend the grid.
     photons
-        Photons to use, for both the imaging and raytracing passes.
+        Default sampling budget for both passes. Imaging uses this number per
+        wavelength; direct raytracing shares its samples across wavelengths.
+    imaging_photons, raytracing_photons
+        Optional overrides for the two passes, leaving ``photons`` as the
+        backwards-compatible default.
     seed
         Random seed. The original decremented a seed per model so that each got
         an independent realization; do the same when building a grid of models.
@@ -244,6 +248,8 @@ class ModelSpec:
     cut_off: float = 10.0
     photons: int = 100000
     seed: int = -1
+    imaging_photons: int | None = None
+    raytracing_photons: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "wavelengths", np.atleast_1d(np.asarray(self.wavelengths, float)))
@@ -253,6 +259,10 @@ class ModelSpec:
             raise ValueError("wavelengths must be positive")
         if self.photons <= 0:
             raise ValueError(f"photons must be positive, got {self.photons}")
+        for name in ("imaging_photons", "raytracing_photons"):
+            value = getattr(self, name)
+            if value is not None and value <= 0:
+                raise ValueError(f"{name} must be positive, got {value}")
         # Validates the inclinations, and the emitter through stellar_emission's
         # own checks when the model is built.
         viewing_angles(self.inclinations, self.azimuths)

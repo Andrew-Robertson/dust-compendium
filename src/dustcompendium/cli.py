@@ -62,7 +62,10 @@ def validate(config: ConfigArgument) -> None:
         f" {campaign.azimuths.size} azimuths"
     )
     typer.echo(
-        f"  Monte Carlo  : {settings.tabulation.photons} photons per wavelength and stage,"
+        f"  Monte Carlo  : {settings.tabulation.imaging_photons or settings.tabulation.photons}"
+        " scattered-light trajectories per wavelength;"
+        f" {settings.tabulation.raytracing_photons or settings.tabulation.photons}"
+        " direct-light samples across all wavelengths,"
         f" {settings.tabulation.seed_policy} seed policy"
     )
     typer.echo("  axes         :")

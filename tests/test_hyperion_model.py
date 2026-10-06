@@ -51,6 +51,15 @@ def dust():
 
 
 class TestBuildModel:
+    def test_separate_stage_budgets(self, dust):
+        from dustcompendium.hyperion_model import build_model
+
+        model = build_model(
+            spec(imaging_photons=123, raytracing_photons=456), dust, radial_cells=20, vertical_cells=20
+        )
+        assert model.n_photons["last_sources"] == 123
+        assert model.n_photons["raytracing_sources"] == 456
+
     def test_the_grid_matches_the_specification(self, dust):
         from dustcompendium.hyperion_model import build_model
 

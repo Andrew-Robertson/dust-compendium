@@ -260,6 +260,8 @@ class Campaign:
                         azimuths=self.azimuths,
                         cut_off=self.config.geometry.cut_off,
                         photons=tabulation.photons,
+                        imaging_photons=tabulation.imaging_photons,
+                        raytracing_photons=tabulation.raytracing_photons,
                         seed=run_seed,
                     ),
                 )

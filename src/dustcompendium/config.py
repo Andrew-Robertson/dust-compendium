@@ -211,6 +211,10 @@ class TabulationConfig(_Base):
     than assuming their average gains a factor of square root two.
     """
     photons: int = Field(default=100000, gt=0)
+    imaging_photons: int | None = Field(default=None, gt=0)
+    """Scattered-light trajectories per wavelength; defaults to ``photons``."""
+    raytracing_photons: int | None = Field(default=None, gt=0)
+    """Direct-light source samples shared across wavelengths; defaults to ``photons``."""
     seed: int = -653
     """The first random seed assigned by the campaign."""
     seed_policy: Literal["model", "geometry"] = "model"

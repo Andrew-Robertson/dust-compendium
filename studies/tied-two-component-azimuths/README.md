@@ -5,6 +5,9 @@ useful way to reduce Monte Carlo noise. Axisymmetry makes their expectations
 equal, but does not make the estimators independent: all directions use the same
 photon histories, and every additional direction has a computational cost.
 
+For the completed-data efficiency diagnostics and the next independently varied
+imaging/direct-light photon budgets, see [EFFICIENCY.md](EFFICIENCY.md).
+
 The experiment holds the physical 54-model smoke grid and photon count fixed,
 uses one, two and four explicit azimuths, and repeats each choice with five
 independent seed families. It therefore comprises 15 campaigns or 810 model

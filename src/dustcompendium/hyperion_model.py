@@ -114,9 +114,9 @@ def build_model(
     image.set_uncertainties(True)
 
     model.set_n_photons(
-        imaging_sources=spec.photons,
+        imaging_sources=spec.imaging_photons if spec.imaging_photons is not None else spec.photons,
         imaging_dust=0,
-        raytracing_sources=spec.photons,
+        raytracing_sources=spec.raytracing_photons if spec.raytracing_photons is not None else spec.photons,
         raytracing_dust=0,
     )
     return model
