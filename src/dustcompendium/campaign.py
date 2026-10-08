@@ -273,6 +273,7 @@ class Campaign:
             "spacing": geometry.spacing,
             "radial_cells": geometry.radial_cells,
             "vertical_cells": geometry.vertical_cells,
+            "inner_radius_fraction": geometry.inner_radius_fraction,
         }
 
     def __repr__(self) -> str:

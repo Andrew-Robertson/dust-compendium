@@ -193,6 +193,13 @@ class GeometryConfig(_Base):
     sampling: Literal["centre", "average"] = "centre"
     radial_cells: int = Field(default=100, ge=2)
     vertical_cells: int = Field(default=100, ge=1)
+    inner_radius_fraction: float = Field(default=0.01, gt=0.0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _check_inner_radius(self) -> "GeometryConfig":
+        if self.inner_radius_fraction >= self.cut_off:
+            raise ValueError("innerRadiusFraction must be below cutOff")
+        return self
 
 
 class TabulationConfig(_Base):

@@ -24,8 +24,8 @@ from .galaxy import Galaxy
 
 __all__ = ["CylindricalGrid"]
 
-#: How far inside the outer radius the innermost logarithmic wall is placed, as
-#: a fraction of the radial extent. From ``hyperionBuildModel.py`` line 101.
+#: First positive radial wall as a fraction of the selected radial scale
+#: (not the cut-off radius). From ``hyperionBuildModel.py`` line 101.
 INNER_RADIUS_FRACTION = 1.0e-2
 
 
@@ -82,6 +82,7 @@ class CylindricalGrid:
         radial_cells: int = 100,
         vertical_cells: int = 100,
         spacing: str = "published",
+        inner_radius_fraction: float = INNER_RADIUS_FRACTION,
     ) -> "CylindricalGrid":
         r"""Build a grid large enough to hold every component of a galaxy.
 
@@ -120,6 +121,11 @@ class CylindricalGrid:
             vanishes from the model. See
             :func:`~dustcompendium.model.dust_density`.
 
+        inner_radius_fraction
+            First positive radial wall, in units of the radial scale selected
+            by ``spacing``. Defaults to 0.01 for backwards compatibility.
+            Refine this as well as the cell counts to test cusp resolution.
+
         Raises
         ------
         ValueError
@@ -132,6 +138,8 @@ class CylindricalGrid:
             raise ValueError(f"cut off must be positive, got {cut_off}")
         if radial_cells < 2 or vertical_cells < 1:
             raise ValueError("need at least two radial cells and one vertical cell")
+        if not np.isfinite(inner_radius_fraction) or not 0 < inner_radius_fraction < cut_off:
+            raise ValueError("inner_radius_fraction must be finite, positive and below cut_off")
         extent_radial = cut_off * galaxy.extent_radial
         extent_vertical = cut_off * galaxy.extent_vertical
         smallest_radial = galaxy.radial_scales[0] if spacing == "nested" else galaxy.extent_radial
@@ -139,7 +147,7 @@ class CylindricalGrid:
             [
                 0.0,
                 np.logspace(
-                    np.log10(INNER_RADIUS_FRACTION * smallest_radial),
+                    np.log10(inner_radius_fraction * smallest_radial),
                     np.log10(extent_radial),
                     radial_cells,
                 ),
