@@ -33,6 +33,21 @@ def design():
     return d
 
 
+def test_grain_hash_requires_original_or_audited_equivalent(tmp_path, monkeypatch):
+    audit = json.loads((HERE / "grain_compatibility.json").read_text())
+    expected = audit["reference_sha256"]
+    equivalent = next(iter(audit["verified_equivalents"]))
+    for actual in (expected, equivalent):
+        monkeypatch.setattr(pilot, "sha", lambda path, value=actual: value)
+        assert pilot.verified_grain_hash(tmp_path / "dust.hdf5", expected) == actual
+    monkeypatch.setattr(pilot, "sha", lambda path: "unknown")
+    with pytest.raises(ValueError, match="unverified grain"):
+        pilot.verified_grain_hash(tmp_path / "dust.hdf5", expected)
+    monkeypatch.setattr(pilot, "sha", lambda path: equivalent)
+    with pytest.raises(ValueError, match="unverified grain"):
+        pilot.verified_grain_hash(tmp_path / "dust.hdf5", "different-reference")
+
+
 def test_nested_reproducible_design_and_disjoint_validation():
     a, b = design(), design()
     assert a == b
@@ -190,6 +205,7 @@ def test_real_worker_export_and_resume(tmp_path, solver_path):
     output = tmp_path / "timing.npz"
     pilot.export(d, manifest, tmp_path / "runs", "timing", output)
     _meta, t, cpu = emulate.archive(output, "timing")
+    assert all(r["grain_sha256"] == d["grain_sha256"] for r in _meta["records"])
     assert t.shape == (4, 19)
     assert np.isfinite(t).all() and (t >= 0).all()
     assert (cpu > 0).all()

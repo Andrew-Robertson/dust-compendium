@@ -26,6 +26,20 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+def verified_grain_hash(path, expected):
+    """Accept only the frozen file or a specifically audited equivalent build."""
+    actual = sha(path)
+    if actual == expected:
+        return actual
+    audit = json.loads((HERE / "grain_compatibility.json").read_text())
+    if expected == audit["reference_sha256"] and actual in audit["verified_equivalents"]:
+        return actual
+    raise ValueError(
+        f"unverified grain checksum mismatch for {path}: expected {expected}, got {actual}. "
+        "Compare numerical optical properties before accepting another build; do not edit the frozen design."
+    )
+
+
 def tasks(design, stage):
     selections = []
     if stage in ("timing", "training"):
@@ -129,8 +143,7 @@ def worker(design, manifest, task, root, grains, process_start=None):
     from dustcompendium.hyperion_model import write_model
     from dustcompendium.postprocess import read_sed_views
 
-    if sha(grains) != design["grain_sha256"]:
-        raise ValueError("grain file differs from frozen design")
+    actual_grain_sha = verified_grain_hash(grains, design["grain_sha256"])
     folder = root / "tasks" / task_id(task)
     folder.mkdir(parents=True, exist_ok=True)
     # Prevent two submissions from mutating the same output directory.
@@ -142,10 +155,18 @@ def worker(design, manifest, task, root, grains, process_start=None):
             read_result(result, manifest_sha, task)
             return
         config = campaign_config(design, task, grains)
-        content = {"manifest_sha256": manifest_sha, "config": config.model_dump(mode="json")}
+        content = {
+            "manifest_sha256": manifest_sha,
+            "config": config.model_dump(mode="json"),
+            "grain_sha256": actual_grain_sha,
+        }
         request = folder / "request.json"
-        if request.exists() and json.loads(request.read_text()) != content:
-            raise ValueError("existing raw outputs belong to a different request")
+        if request.exists():
+            stored = json.loads(request.read_text())
+            # Before the compatibility audit, only the original hash was accepted.
+            stored.setdefault("grain_sha256", design["grain_sha256"])
+            if stored != content:
+                raise ValueError("existing raw outputs belong to a different request")
         if not request.exists():
             request.write_text(json.dumps(content, indent=2) + "\n")
         wall = time.perf_counter()
@@ -205,6 +226,8 @@ def worker(design, manifest, task, root, grains, process_start=None):
             "replicate": task[3],
             "analytic": analytic,
             "worker_sha256": sha(__file__),
+            "grain_sha256": actual_grain_sha,
+            "grain_reference_sha256": design["grain_sha256"],
             "config": config.model_dump(mode="json"),
             "solver_cpu_seconds": sum(cpu),
             "python_cpu_seconds": python_cpu,
@@ -335,8 +358,9 @@ def main():
         # A command-line worker owns this process: include its import/setup CPU.
         worker(design, manifest, task, args.runs, args.grains, process_start=0.0)
     elif args.command == "run":
-        if sha(args.grains) != design["grain_sha256"]:
-            raise ValueError("grain checksum mismatch")
+        actual = verified_grain_hash(args.grains, design["grain_sha256"])
+        if actual != design["grain_sha256"]:
+            print(f"Using verified numerically equivalent grain build: {actual}")
         submit(design, manifest, args)
     else:
         if args.output is None:

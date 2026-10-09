@@ -1,0 +1,18 @@
+{
+  "reference_sha256": "c79b4b92062d0b9842dd7f2069cf75155c7ad78a43e7a873c5a5fe8e60c8d6e7",
+  "verified_equivalents": {
+    "fa6c32c51856113dd560ad54e74e5ecae00ec8d2916918b12b88382860f8dc46": {
+      "origin": "OBS-HPC locally built d03_4.0_4.0_A.hdf5; downloaded for direct numerical comparison",
+      "comparison": "Full HDF5 dataset field comparison; all arrays finite, same shapes and dtypes, identical root attributes",
+      "identical_fields": ["optical_properties/nu", "optical_properties/albedo", "optical_properties/chi", "scattering_angles/mu"],
+      "maximum_symmetric_relative_difference": {
+        "optical_properties/P1": 2.347473855271495e-15,
+        "optical_properties/P2": 2.32943240162341e-15,
+        "optical_properties/P3": 2.352005781959034e-15,
+        "optical_properties/P4": 2.3380516767703753e-15,
+        "all_thermal_auxiliary_fields": 2.8585876930163347e-11
+      },
+      "decision": "Accept this exact file hash as equivalent for the attenuation-only pilot. Differences are consistent with floating-point roundoff. No numerical tolerance is applied to other files at runtime."
+    }
+  }
+}

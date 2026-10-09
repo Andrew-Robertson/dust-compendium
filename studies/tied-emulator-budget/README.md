@@ -9,6 +9,14 @@ No files in the earlier azimuth/resolution studies are changed.
 `pilot.json` contains the actual continuous locations and their provenance.
 Unlike the Benson subsampling studies, these are not snapped to an existing grid.
 The order, validation split, grains, seed policy and photon budgets are frozen.
+The grain resource is checked against the original byte hash or the explicitly
+audited equivalent OBS-HPC build in `grain_compatibility.json`. Their extinction,
+albedo, frequency and scattering-angle arrays are identical; their scattering
+matrices differ by at most 2.4e-15 fractionally. This is an exact allowlist, not
+a general tolerance or a bypass. Unknown builds remain rejected. Each new worker
+result records its actual grain hash as well as the frozen reference hash; older
+results without the actual-hash field used the original reference (the only file
+accepted before this audit). The frozen sampling manifest is unchanged.
 The same wavelength/geometry locations are used for disk and spheroid emitters,
 which are simulated and learned separately.
 
