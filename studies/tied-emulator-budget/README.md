@@ -111,13 +111,102 @@ If a resource limit is exceeded, retain logs and resume with more walltime.
 
 ## Subsequent stages (after the timing review)
 
-Use `--stage training` and then `--stage validation` in the same run command.
-The former skips completed timing jobs and runs the remaining members of both
-arms; the latter runs independent validation seeds. Export each complete stage
-as `training.npz` and `validation.npz`, respectively, using the same export syntax.
+For the larger campaign, use **Slurm arrays**, not the terminal-side polling
+driver above. The `pilot.py run` driver must remain alive to replenish jobs;
+`arrays.py submit` submits the complete dependency chain and exits. No SSH
+connection, `tmux` session, or background login-node driver is needed after
+successful submission. Do not run both submission methods simultaneously.
+
+The launcher reads `scontrol show config`, respecting both `MaxArraySize` and
+any `max_array_tasks` value in `SchedulerParameters`. To inspect these manually:
+
+```bash
+scontrol show config | grep -E 'MaxArraySize|MaxJobCount|SchedulerParameters'
+```
+
+OBS-HPC reported `MaxArraySize=10001`, `MaxJobCount=250000`, and
+`SchedulerParameters=preempt_strict_order` on 2026-10-09. Both stages fit in one
+array each. These are cluster limits, not a guarantee about account/QOS submit
+limits: array elements also count towards those. If Slurm rejects part of a
+submission, accepted jobs continue and their IDs are retained in the receipt.
+
+After activating the environment, first inspect the plan without submitting:
+
+```bash
+cd /home/arobertson/Galacticus/dust-compendium
+git pull --ff-only
+conda activate /home/arobertson/Galacticus/dust-compendium/.conda/hyperion
+export DUST_RT_WORK=/carnegie/nobackup/users/arobertson/dust-rt-work
+
+python studies/tied-emulator-budget/arrays.py submit \
+  --runs "$DUST_RT_WORK/emulator-budget-v1"
+```
+
+Then submit **both training and validation, including their exports**:
+
+```bash
+python studies/tied-emulator-budget/arrays.py submit \
+  --runs "$DUST_RT_WORK/emulator-budget-v1" \
+  --concurrency 96 \
+  --walltime 08:00:00 \
+  --execute
+```
+
+Completed timing results are validated and skipped. The eight-hour per-task
+limit replaces the timing stage's two-hour limit: the slowest high-photon timing
+job took 82 minutes, and validation uses twice as many photons. Eight hours is
+headroom, not a demonstrated upper bound. Every RT task remains **one core**;
+neither photon budgets nor the scientific worker have changed.
+
+If splitting is needed, contiguous zero-based chunks are chained with Slurm
+`afterany` dependencies, and each array has a `%96` throttle. Only one chunk or
+export job from this submission can run at once, so the cap applies across
+the whole submission, not independently to several simultaneous arrays.
+There can be idle cores while waiting for a chunk's slowest tasks. Use
+`--array-size 1000` to impose a smaller chunk size, never to override a cluster
+limit. The launcher refuses to guess if it cannot read the cluster limit.
+
+The chain is training arrays -> training export -> validation arrays -> validation
+export. Dependencies deliberately use `afterany`: an individual failed RT task
+does not strand all remaining work. Each export checks **all** expected results
+and fails rather than writing a partial archive. Thus later validation may run
+even if training export fails. The default stages can be restricted with
+`--stages training` or `--stages validation` when recovering.
+
+Each submission writes an `arrays/submit-*/receipt.json` under the run directory,
+with the plan, accepted job IDs and submission state; scripts, task-to-index maps,
+and Slurm logs sit alongside it. The scientific manifest and worker scripts are
+snapshotted there, while source development remains in the home-space repository.
+The installed package/environment is **not** snapshotted: do not modify it while
+the campaign runs. Submission uses the active environment's absolute Python path.
+
+Monitor without keeping a connection open:
+
+```bash
+squeue --me
+# Replace the example IDs with those printed by the launcher:
+sacct -j 12345,12346,12347,12348 \
+  --format=JobID,State,ExitCode,Elapsed,TotalCPU
+```
+
+After the entire chain finishes, rerunning the same submission command validates
+and skips successful results, submitting only missing work and fresh exports.
+An active earlier array/export from this run directory blocks duplicate submission.
+If a submission response was interrupted or ambiguous, the receipt remains
+`submitting` and a retry is refused: inspect `attempted_job_name` with `squeue`
+and `sacct` before resolving that state. Do not blindly retry `sbatch` or delete
+receipts. The older polling driver is not tracked by these receipts; stop it and
+wait for its submitted jobs before switching to arrays.
+
+On success, transfer `compact/training.npz` and `compact/validation.npz` to the
+Mac. An old archive can remain after a later failed export, so verify the newest
+export job succeeded rather than relying only on the file's existence.
+
 There are 9,216 total training jobs (including 576 analytical dust-free jobs),
 and 780 validation jobs. Each non-analytic job includes its clear control.
 Large raw outputs remain on scratch; transfer only the compact stage exports.
+
+Slurm reference: [job arrays and dependencies](https://slurm.schedmd.com/job_array.html).
 
 For a completed matched-budget comparison, the script sums the measured solver
 CPU and worker Python CPU, including normalization, across both emitters. It then
