@@ -222,7 +222,8 @@ def test_no_missing_tasks_still_queues_export(tmp_path):
 
 
 @pytest.mark.hyperion
-def test_generated_scripts_run_real_analytic_workers_and_export(tmp_path):
+@pytest.mark.parametrize("pin_sources", [False, True])
+def test_generated_scripts_run_real_analytic_workers_and_export(tmp_path, pin_sources):
     """End-to-end dry dust-free control: real worker/config/result/export, no RT solver."""
     import os
 
@@ -230,6 +231,8 @@ def test_generated_scripts_run_real_analytic_workers_and_export(tmp_path):
     design = json.loads((HERE / "pilot.json").read_text())
     design["train"] = [next(p for p in design["train"] if p["x"][1:3] == [0.0, 0.0])]
     design["many_count"] = design["precise_count"] = 1
+    if pin_sources:
+        design["runtime_source_sha256"] = pilot.source_fingerprints()
     # The analytic worker hashes this file, but does not load grain optical data.
     args.grains.write_bytes(b"analytic test grain resource")
     design["grain_sha256"] = pilot.sha(args.grains)
@@ -250,5 +253,7 @@ def test_generated_scripts_run_real_analytic_workers_and_export(tmp_path):
         metadata = json.loads(str(result["metadata"]))
     assert metadata["manifest_sha256"] == pilot.sha(args.manifest)
     assert all(r["worker_sha256"] == pilot.sha(HERE / "pilot.py") for r in metadata["records"])
+    if pin_sources:
+        assert all(r["runtime_source_sha256"] == design["runtime_source_sha256"] for r in metadata["records"])
     assert arrays.unfinished(design, args.manifest, args.runs, "training") == ([], 4)
     assert (folder / "pilot.py").read_bytes() == (HERE / "pilot.py").read_bytes()

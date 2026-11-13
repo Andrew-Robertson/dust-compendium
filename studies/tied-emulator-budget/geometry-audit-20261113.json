@@ -1,0 +1,87 @@
+{
+  "reference_pr": "https://github.com/galacticusorg/galacticus/pull/1683",
+  "runtime_source_sha256": {
+    "__init__.py": "eeb0352c0d1292d419476d795d296d7918e33710efccfb16871460da23814aa0",
+    "campaign.py": "ce98923e1f433bb801582d4a21edb181d914e3e96cad7822514df4186141332c",
+    "cli.py": "4e0f98867d1608dd52e230b81d1e399f3d3754a63585769007f7d778caa40aae",
+    "config.py": "662c7e9cddda355e0940cb62c7b200c7e3c7467d3b90a8f80265028df77d72b0",
+    "dust/__init__.py": "c96722a3b8ac0babb701abd25ee44f2b2d46c3a2cb2cab67dc55ee8dab2f6189",
+    "dust/ferrara.py": "2a434f8134fc85fdfc3238c1a4d2e4a9040b872059cd65901c090004b9d2483c",
+    "dust/properties.py": "44d3cf6e94e9ec9efb25ad575a63f3358692d079e95798e580b6105c200961a9",
+    "galaxy.py": "69fff4db3a4229d40dc5c210ea8d0281a2191930214da08a131d558cb49c6849",
+    "geometry/__init__.py": "5634ae48fd8e76814a31a5a790850c280ab92ce3bcbb64b1e1bcc27ede121535",
+    "geometry/base.py": "4e4491ebc9675fd8e01b5a1de99d18435d410dbfb5167a953f20933ea7240e95",
+    "geometry/disk.py": "497b20299b6699c5cbea643132da2ffa0666a93867a0bfef739838e6e47c347c",
+    "geometry/spheroid.py": "7a6c948bc9ff3c4d3e5aaf84afab8c3d505f77d4b5779a1586d5156b44cb8f81",
+    "grid.py": "66796ae74fe35545d7ef3255f58efc019c4196aaf8f17b9cf3e89cd9eb1d5512",
+    "hyperion_model.py": "a7b89e8390cfa277c87959edf9487cc5f4725ddd3142346fc5e9985dc7bc1991",
+    "model.py": "212342165a314cb11b8f6470225df87ff304eeb5dcd5f312a5cc367514c906b4",
+    "plots.py": "9461bb32cee00731adb6bdc12375b05ac6cffa4c6762a26b457737afb60b6a2e",
+    "postprocess.py": "968d7f2799b6b375d0f837e696eb4868a5eeea9996844b64675ddcd91c4114ff",
+    "runner/__init__.py": "3ae6fdd4a080845175a36a55b131ce5cee006eba80e9f067f8f21f68ae5e6802",
+    "runner/base.py": "3495188c047cde10713594a5b13fd12c7becb79232becb8070016cf0fd0ac527",
+    "runner/local.py": "8175d4cdc5a2beb98244eb83ef9a72f88f3a1652c7e7e9763b85fe87833d0c10",
+    "runner/slurm.py": "18b89eb88540803f765428714e613b111448b3b3c481ba7f0e23d5b8a1111b4f",
+    "runner/solver.py": "3537854d3787fa2c88fe699c106a3d8e66fc56c37483c9f6a41df5b07109e98e",
+    "runner/worker.py": "89f1539acaf3e4fbba3dc0006b94c8286f58ba606b14b1bd5afb3264894438ad",
+    "tabulation.py": "625c9614a4c5bd8e4851d7d8f91bdf640ea3ca3a38c99f30adc0b5d214b70a2b",
+    "validation.py": "b65a3b65280cde054b093105b6545ca6e613484e9762e4e9514701f65bc85620"
+  },
+  "checks": [
+    {
+      "q": 0.03,
+      "relative_spheroid_mass_error": 0.0,
+      "reflected_cell_error_fraction_of_total": 3.3605631844674236e-17,
+      "maximum_spheroid_cell_fraction": 0.006527211526966676,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.999800018897012,
+      "truncation_radius": 0.3
+    },
+    {
+      "q": 0.137,
+      "relative_spheroid_mass_error": 1.3322676295501878e-15,
+      "reflected_cell_error_fraction_of_total": 2.606127639851907e-14,
+      "maximum_spheroid_cell_fraction": 0.0030744011733007874,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.9990871315044286,
+      "truncation_radius": 1.37
+    },
+    {
+      "q": 1.0,
+      "relative_spheroid_mass_error": -3.3306690738754696e-16,
+      "reflected_cell_error_fraction_of_total": 6.716868346584444e-17,
+      "maximum_spheroid_cell_fraction": 0.000682534017823077,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.9933582668031349,
+      "truncation_radius": 10.0
+    },
+    {
+      "q": 3.0,
+      "relative_spheroid_mass_error": 6.661338147750939e-16,
+      "reflected_cell_error_fraction_of_total": 6.716791015872057e-17,
+      "maximum_spheroid_cell_fraction": 0.0006879303613527647,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.9933582668031349,
+      "truncation_radius": 30.0
+    },
+    {
+      "q": 10.0,
+      "relative_spheroid_mass_error": -9.992007221626409e-16,
+      "reflected_cell_error_fraction_of_total": 6.716918456886071e-17,
+      "maximum_spheroid_cell_fraction": 0.0010988494082319893,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.9933582668031349,
+      "truncation_radius": 100.0
+    },
+    {
+      "q": 31.6,
+      "relative_spheroid_mass_error": 5.551115123125783e-15,
+      "reflected_cell_error_fraction_of_total": 6.716620766561683e-17,
+      "maximum_spheroid_cell_fraction": 0.0015619591131523056,
+      "relative_disk_mass_error": 0.0,
+      "central_cylinder_tau_disk": 0.9933582668031349,
+      "truncation_radius": 316.0
+    }
+  ],
+  "interpretation": "Build-path geometry checks, not an independent reanalysis of archived raw Hyperion inputs. q=31.6 is an out-of-domain regression control; the pilot stops at q=10."
+}

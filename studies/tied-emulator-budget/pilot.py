@@ -26,6 +26,20 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+def source_fingerprints():
+    """Fingerprint the installed model-building package, including geometry."""
+    import dustcompendium
+
+    root = Path(dustcompendium.__file__).resolve().parent
+    return {str(p.relative_to(root)): sha(p) for p in sorted(root.rglob("*.py"))}
+
+
+def verify_sources(design):
+    expected = design.get("runtime_source_sha256")
+    if expected is not None and source_fingerprints() != expected:
+        raise ValueError("model-building source differs from the frozen campaign; do not mix RT versions")
+
+
 def verified_grain_hash(path, expected):
     """Accept only the frozen file or a specifically audited equivalent build."""
     actual = sha(path)
@@ -41,6 +55,8 @@ def verified_grain_hash(path, expected):
 
 
 def tasks(design, stage):
+    if "extension" in design and stage != "training":
+        raise ValueError("this extension contains training only; reuse the parent validation archive")
     selections = []
     if stage in ("timing", "training"):
         for allocation, count in [("low", design["many_count"]), ("high", design["precise_count"])]:
@@ -138,11 +154,27 @@ def read_result(path, manifest_sha, task):
     return meta, result
 
 
+def cleanup_raw(design, task, folder):
+    """Only new extensions opt in; preserve an initial raw audit sample.
+
+    The compact result must be verified by the caller BEFORE entering here.
+    Keep request, logs, measured fluxes and uncertainty arrays in all cases.
+    """
+    keep = design.get("retain_raw_first_locations")
+    if keep is None or "extension" not in design:
+        return
+    if task[1]["index"] < design["extension"]["parent_low_count"] + keep:
+        return
+    for name in ("dusty.hdf5", "dusty.rtout", "clear.hdf5", "clear.rtout"):
+        (folder / name).unlink(missing_ok=True)
+
+
 def worker(design, manifest, task, root, grains, process_start=None):
     from dustcompendium.dust import load_dust
     from dustcompendium.hyperion_model import write_model
     from dustcompendium.postprocess import read_sed_views
 
+    verify_sources(design)
     actual_grain_sha = verified_grain_hash(grains, design["grain_sha256"])
     folder = root / "tasks" / task_id(task)
     folder.mkdir(parents=True, exist_ok=True)
@@ -152,7 +184,10 @@ def worker(design, manifest, task, root, grains, process_start=None):
         manifest_sha = sha(manifest)
         result = folder / "result.npz"
         if result.exists():
-            read_result(result, manifest_sha, task)
+            _, checked = read_result(result, manifest_sha, task)
+            if checked["transmission"].shape != (len(design["inclinations"]),):
+                raise ValueError("invalid result shape; retaining raw files")
+            cleanup_raw(design, task, folder)
             return
         config = campaign_config(design, task, grains)
         content = {
@@ -226,6 +261,7 @@ def worker(design, manifest, task, root, grains, process_start=None):
             "replicate": task[3],
             "analytic": analytic,
             "worker_sha256": sha(__file__),
+            "runtime_source_sha256": source_fingerprints(),
             "grain_sha256": actual_grain_sha,
             "grain_reference_sha256": design["grain_sha256"],
             "config": config.model_dump(mode="json"),
@@ -246,7 +282,10 @@ def worker(design, manifest, task, root, grains, process_start=None):
             reported=np.array(reported),
         )
         os.replace(temporary, result)
-        read_result(result, manifest_sha, task)
+        _, checked = read_result(result, manifest_sha, task)
+        if checked["transmission"].shape != (len(design["inclinations"]),):
+            raise ValueError("invalid result shape; retaining raw files")
+        cleanup_raw(design, task, folder)
 
 
 def submit(design, manifest, args):

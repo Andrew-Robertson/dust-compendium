@@ -76,14 +76,15 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def shell_script(path, argv, array=False):
+def shell_script(path, argv, array=False, source=None):
     invocation = shlex.join([str(v) for v in argv])
     if array:
         invocation += ' --index "${SLURM_ARRAY_TASK_ID:?not an array task}"'
     path.write_text(
         "#!/bin/bash\nset -euo pipefail\n"
         "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1\n"
-        f"exec {invocation}\n"
+        + (f"export PYTHONPATH={shlex.quote(str(source))}\n" if source is not None else "")
+        + f"exec {invocation}\n"
     )
 
 
@@ -98,6 +99,24 @@ def prepare(args, selections, limit, config):
         shutil.copyfile(HERE / name, folder / name)
     manifest = folder / "pilot.json"
     shutil.copyfile(args.manifest, manifest)
+    design = json.loads(manifest.read_text())
+    source = None
+    if "runtime_source_sha256" in design:
+        import dustcompendium
+
+        pilot.verify_sources(design)
+        source = folder / "source"
+        shutil.copytree(
+            Path(dustcompendium.__file__).resolve().parent,
+            source / "dustcompendium",
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+        copied = {
+            str(p.relative_to(source / "dustcompendium")): pilot.sha(p)
+            for p in sorted((source / "dustcompendium").rglob("*.py"))
+        }
+        if copied != design["runtime_source_sha256"]:
+            raise ValueError("source changed during snapshot")
     (folder / "slurm-config.txt").write_text(config)
     (folder / "logs").mkdir()
     common = [
@@ -130,7 +149,10 @@ def prepare(args, selections, limit, config):
             )
             script = folder / f"{label}.sh"
             shell_script(
-                script, [sys.executable, folder / "arrays.py", "task", "--mapping", mapping], array=True
+                script,
+                [sys.executable, folder / "arrays.py", "task", "--mapping", mapping],
+                array=True,
+                source=source,
             )
             plan.append({"label": label, "script": str(script), "count": len(selected), "stage": stage})
         # afterany dependencies allow this audit to run even if some tasks failed.
@@ -149,6 +171,7 @@ def prepare(args, selections, limit, config):
                 "--output",
                 args.runs / "compact" / f"{stage}.npz",
             ],
+            source=source,
         )
         plan.append({"label": label, "script": str(script), "count": None, "stage": stage})
     receipt = {
@@ -267,6 +290,7 @@ def main():
         parser.error("stages must be distinct; timing is already part of training")
     args.manifest, args.runs, args.grains = (p.resolve() for p in (args.manifest, args.runs, args.grains))
     design = json.loads(args.manifest.read_text())
+    pilot.verify_sources(design)
     actual = pilot.verified_grain_hash(args.grains, design["grain_sha256"])
     print(f"Verified grain SHA-256: {actual}")
     config = command(["scontrol", "show", "config"]).stdout
