@@ -182,6 +182,7 @@ def prepare(args, selections, limit, config):
         "concurrency": args.concurrency,
         "partition": args.partition,
         "walltime": args.walltime,
+        "export_walltime": args.export_walltime,
         "manifest_sha256": pilot.sha(manifest),
         "python": sys.executable,
     }
@@ -202,9 +203,9 @@ def submit_plan(folder, receipt, runs):
             "--nodes=1",
             "--ntasks=1",
             "--cpus-per-task=1",
-            "--mem=2048M",
+            "--mem=2048M" if item["count"] else "--mem=8G",
             f"--partition={receipt['partition']}",
-            f"--time={receipt['walltime'] if item['count'] else '00:30:00'}",
+            f"--time={receipt['walltime'] if item['count'] else receipt.get('export_walltime', '08:00:00')}",
             f"--job-name={job_name}",
             f"--output={output}",
             f"--error={output}",
@@ -272,6 +273,9 @@ def main():
     )
     submit_parser.add_argument("--partition", default="obs")
     submit_parser.add_argument("--walltime", default="08:00:00")
+    submit_parser.add_argument(
+        "--export-walltime", default="08:00:00", help="time limit for each compact export job"
+    )
     submit_parser.add_argument("--concurrency", type=int, default=96)
     submit_parser.add_argument(
         "--array-size", type=int, help="optional smaller cap, not a cluster-limit override"

@@ -65,6 +65,7 @@ def test_submission_snapshots_and_checks_imported_sources(modules, tmp_path, mon
         concurrency=96,
         partition="obs",
         walltime="08:00:00",
+        export_walltime="08:00:00",
     )
     folder, receipt = arrays.prepare(args, {"training": ["one", "two"]}, 10001, "")
     assert (folder / "source/dustcompendium/geometry/spheroid.py").exists()

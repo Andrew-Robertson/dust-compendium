@@ -338,22 +338,32 @@ def submit(design, manifest, args):
 
 def export(design, manifest, root, stage, output):
     records, transmissions, elapsed, wall = [], [], [], []
-    for task in tasks(design, stage):
+    manifest_sha = sha(manifest)
+    selected = tasks(design, stage)
+    started = time.monotonic()
+    print(f"Validating {len(selected)} {stage} results", flush=True)
+    for index, task in enumerate(selected, 1):
         path = root / "tasks" / task_id(task) / "result.npz"
         if not path.exists():
             raise ValueError(f"missing result: {path}; no partial export")
-        meta, data = read_result(path, sha(manifest), task)
+        meta, data = read_result(path, manifest_sha, task)
         if data["transmission"].shape != (len(design["inclinations"]),):
             raise ValueError("incorrect inclination shape")
         records.append(meta)
         transmissions.append(data["transmission"])
         elapsed.append(meta["compute_seconds"])
         wall.append(meta["worker_wall_seconds"])
+        if index % 1000 == 0 or index == len(selected):
+            print(
+                f"Validated {index}/{len(selected)} results in {time.monotonic() - started:.1f}s",
+                flush=True,
+            )
+    print("Writing compressed export", flush=True)
     output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         output,
         metadata=json.dumps(
-            {"design": design, "manifest_sha256": sha(manifest), "stage": stage, "records": records}
+            {"design": design, "manifest_sha256": manifest_sha, "stage": stage, "records": records}
         ),
         transmission=transmissions,
         compute_seconds=elapsed,

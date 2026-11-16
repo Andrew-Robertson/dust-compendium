@@ -122,6 +122,14 @@ yield a partial export. The output is:
 
 `$DUST_RT_WORK/emulator-budget-32768-extension/compact/training.npz`
 
+Export jobs request one CPU, 8 GiB memory and eight hours by default; override
+the time limit with `--export-walltime HH:MM:SS`. This is separate from the
+simulation task `--walltime`. The exporter hashes the manifest once, validates
+every result against that hash, and logs progress every 1,000 records before
+writing the compressed archive. A timeout in export does not require rerunning
+completed simulations. Existing submission scripts retain their snapshotted
+exporter; updating the checkout does not change an already submitted job.
+
 ## Combine completed results
 
 After the extension finishes, merge it with the original compact archives:

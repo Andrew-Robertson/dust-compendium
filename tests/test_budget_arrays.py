@@ -63,6 +63,7 @@ def arguments(tmp_path):
         concurrency=96,
         partition="obs",
         walltime="08:00:00",
+        export_walltime="04:00:00",
     )
 
 
@@ -115,7 +116,9 @@ def test_submission_chain_cap_exports_and_receipt(tmp_path, monkeypatch):
     assert "--array=0-1%96" in calls[0]
     assert "--array=0-0%96" in calls[1]
     assert "--time=08:00:00" in calls[0]
-    assert "--time=00:30:00" in calls[2]
+    assert "--time=04:00:00" in calls[2]
+    assert "--mem=8G" in calls[2]
+    assert "--mem=2048M" in calls[0]
     assert not any(a.startswith("--array") for a in calls[2])
     final = json.loads((folder / "receipt.json").read_text())
     assert final["state"] == "submitted"
@@ -219,6 +222,53 @@ def test_no_missing_tasks_still_queues_export(tmp_path):
     _, receipt = arrays.prepare(args, {"training": []}, 10, "")
     assert len(receipt["plan"]) == 1
     assert receipt["plan"][0]["label"] == "training-export"
+
+
+@pytest.mark.parametrize("stale", [False, True])
+def test_export_hashes_once_and_still_validates_every_record(tmp_path, monkeypatch, capsys, stale):
+    design = {
+        "many_count": 2,
+        "precise_count": 0,
+        "train": [{"id": "p0"}, {"id": "p1"}],
+        "inclinations": [0, 90],
+    }
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps(design))
+    digest = pilot.sha(manifest)
+    selected = pilot.tasks(design, "training")
+    for index, task in enumerate(selected):
+        result = tmp_path / "tasks" / pilot.task_id(task) / "result.npz"
+        result.parent.mkdir(parents=True)
+        metadata = {
+            "manifest_sha256": "stale" if stale and index == len(selected) - 1 else digest,
+            "task": pilot.task_id(task),
+            "allocation": "low",
+            "compute_seconds": 1.0,
+            "worker_wall_seconds": 2.0,
+        }
+        np.savez(result, metadata=json.dumps(metadata), transmission=[0.8, 0.3])
+    original_sha = pilot.sha
+    calls = []
+
+    def counted_sha(path):
+        calls.append(path)
+        return original_sha(path)
+
+    monkeypatch.setattr(pilot, "sha", counted_sha)
+    output = tmp_path / "compact" / "training.npz"
+    if stale:
+        with pytest.raises(ValueError, match="stale or mismatched"):
+            pilot.export(design, manifest, tmp_path, "training", output)
+        assert not output.exists()
+    else:
+        pilot.export(design, manifest, tmp_path, "training", output)
+        with np.load(output, allow_pickle=False) as archive:
+            np.testing.assert_array_equal(archive["transmission"], [[0.8, 0.3]] * 4)
+            meta = json.loads(str(archive["metadata"]))
+        assert meta["manifest_sha256"] == digest
+        assert [r["task"] for r in meta["records"]] == [pilot.task_id(t) for t in selected]
+        assert "Validated 4/4 results" in capsys.readouterr().out
+    assert calls == [manifest]
 
 
 @pytest.mark.hyperion
